@@ -6,7 +6,7 @@ Created on Wed Aug 30 09:26:59 2017
 """
 
 import pandas as pd
-from htsprophet.hts import hts
+from htsprophet.hts import forecast_hts
 from htsprophet.htsPlot import plotNode
 from lastprophet.last import lastF
 import matplotlib.pyplot as plt
@@ -21,14 +21,14 @@ nodes = [[30]]   # Tell the function the structure of the hierarchy, here we hav
 
 #%% Forecast to find Stock Market Holidays
 data = dJIA.copy()
-pred = hts(data.iloc[:550, :], 470, nodes, method = "BU", yearly_seasonality = True, freq = "B")
+pred = forecast_hts(data.iloc[:550, :], 470, nodes, method ="BU", yearly_seasonality = True, freq ="B")
 realDates = pd.DatetimeIndex(dJIA.Date)
 leftOvers = [d for d in pred["Total"].ds if d not in realDates]
 leftOvers = [d for d in leftOvers if d < pd.datetime(2017,8,29)]    # Only look at dates that are within the range of the original dataset
 extraPred = len(leftOvers)
 
 #%% fit data with hts and forecast a year into the future 
-pred = hts(dJIA, h = 260+extraPred, nodes = nodes, method = "WLSS", freq = "B")  # We set freq = B because we have a business day frequency and not the default daily frequency
+pred = forecast_hts(dJIA, h =260 + extraPred, nodes = nodes, method ="WLSS", freq ="B")  # We set freq = B because we have a business day frequency and not the default daily frequency
 for key in pred.keys():
     pred[key] = pred[key][~pred[key].ds.isin(leftOvers)]
 
@@ -53,7 +53,7 @@ for j in range(550, 750, 20):  # Rolling Forecast Origin
     testLen = len(test_index)
     if testLen < 260 or len(train_index) < 522:    # If training data is less than two years (business day years) or test data is less than 1 year, skip it
         continue
-    pred = hts(dat.iloc[train_index, :], testLen+extraPred, nodes, method = "WLSS", freq = "B", yearly_seasonality = True)   # Fit the model
+    pred = forecast_hts(dat.iloc[train_index, :], testLen + extraPred, nodes, method ="WLSS", freq ="B", yearly_seasonality = True)   # Fit the model
     for key in pred.keys():
         pred[key] = pred[key][~pred[key].ds.isin(leftOvers)]
         pred[key] = pred[key].reset_index(drop = True)              #Remove the holidays
@@ -128,7 +128,7 @@ for j in range(550, 750, 5):
     testLen = len(test_index)
     if testLen < 260 or len(train_index) < 522:
         continue
-    pred = hts(dat.iloc[train_index, :], testLen+extraPred, nodes, method = "WLSS", freq = "B", yearly_seasonality = True)
+    pred = forecast_hts(dat.iloc[train_index, :], testLen + extraPred, nodes, method ="WLSS", freq ="B", yearly_seasonality = True)
     for key in pred.keys():
         pred[key] = pred[key][~pred[key].ds.isin(leftOvers)]
         pred[key] = pred[key].reset_index(drop = True)
@@ -165,7 +165,7 @@ ax.set_ylabel("Weigthed Price", fontsize=14)
 ax.legend(fontsize = 12)
 #%% HTS Forecasts
 data = dJIA.copy()
-pred1 = hts(data.iloc[:719, :], 281, nodes, method = "PHA", yearly_seasonality = True, freq = "B")
+pred1 = forecast_hts(data.iloc[:719, :], 281, nodes, method ="PHA", yearly_seasonality = True, freq ="B")
 fig = plt.figure(facecolor='w', figsize=(10, 6))
 ax = fig.add_subplot(111)
 ax.plot(pd.DatetimeIndex(dJIA.iloc[:,0].values), dJIA.iloc[:,3], label = "True Values")

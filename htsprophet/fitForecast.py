@@ -1,20 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Name: fitForecast.py
-Author: Collin Rooney
-Last Updated: 7/18/2017
-This script will contain functions for all types of hierarchical modeling approaches.
-It will use the prophet package as a forecasting tool.
-The general idea of it is very similar to the hts package in R, but it is a little
-more specific with how the dataframe is put together.
-Credit to Rob J. Hyndman and research partners as much of the code was developed with the help of their work
-https://www.otexts.org/fpp
-https://robjhyndman.com/publications/
-Credit to Facebook and their fbprophet package
-https://facebookincubator.github.io/prophet/
-It was my intention to make some of the code look similar to certain sections in the Prophet and (Hyndman's) hts packages
-"""
-
 import pandas as pd
 import numpy as np
 from fbprophet import Prophet
@@ -26,7 +9,110 @@ def fitForecast(y, h, sumMat, nodes, method, freq, include_history, cap, capF, c
                 yearly_seasonality, weekly_seasonality, daily_seasonality, holidays, seasonality_prior_scale, \
                 holidays_prior_scale, changepoint_prior_scale, mcmc_samples, interval_width, uncertainty_samples, \
                 boxcoxT, skipFitting):
-   
+
+    forecastsDict, mse = forecast_all_series(boxcoxT, cap, capF, changepoint_prior_scale, changepoints,
+                                             daily_seasonality, freq, h, holidays, holidays_prior_scale,
+                                             include_history, interval_width, mcmc_samples, method, n_changepoints,
+                                             nodes, seasonality_prior_scale, skipFitting, sumMat, uncertainty_samples,
+                                             weekly_seasonality, y, yearly_seasonality)
+
+    forecastsDict = reconcile_forecasts(boxcoxT, capF, forecastsDict, method, mse, nodes, sumMat, y)
+
+    return forecastsDict
+
+
+def reconcile_forecasts(boxcoxT, capF, forecastsDict, method, mse, nodes, sumMat, y):
+    if method == 'BU' or method == 'AHP' or method == 'PHA':
+        y1 = y.copy()
+        nCols = len(list(forecastsDict.keys())) + 1
+        if method == 'BU':
+            '''
+             Pros:
+               No information lost due to aggregation
+             Cons:
+               Bottom level data can be noisy and more challenging to model and forecast
+            '''
+            hatMat = np.zeros([len(forecastsDict[0].yhat), 1])
+            for key in range(nCols - sumMat.shape[1] - 1, nCols - 1):
+                f1 = np.array(forecastsDict[key].yhat)
+                f2 = f1[:, np.newaxis]
+                if np.all(hatMat == 0):
+                    hatMat = f2
+                else:
+                    hatMat = np.concatenate((hatMat, f2), axis=1)
+
+        if method == 'AHP':
+            '''
+             Pros:
+               Creates reliable aggregate forecasts, and good for low count data
+             Cons:
+               Unable to capture individual series dynamics
+            '''
+            if boxcoxT is not None:
+                for column in range(len(y.columns.tolist()) - 1):
+                    y1.iloc[:, column + 1] = inv_boxcox(y1.iloc[:, column + 1], boxcoxT[column])
+            ##
+            # Find Proportions
+            ##
+            fcst = forecastsDict[0].yhat
+            fcst = fcst[:, np.newaxis]
+            numBTS = sumMat.shape[1]
+            btsDat = pd.DataFrame(y1.iloc[:, nCols - numBTS:nCols])
+            divs = np.divide(np.transpose(np.array(btsDat)), np.array(y1.iloc[:, 1]))
+            props = divs.mean(1)
+            props = props[:, np.newaxis]
+            hatMat = np.dot(np.array(fcst), np.transpose(props))
+
+        if method == 'PHA':
+            '''
+             Pros:
+               Creates reliable aggregate forecasts, and good for low count data
+             Cons:
+               Unable to capture individual series dynamics
+            '''
+            if boxcoxT is not None:
+                for column in range(len(y.columns.tolist()) - 1):
+                    y1.iloc[:, column + 1] = inv_boxcox(y1.iloc[:, column + 1], boxcoxT[column])
+            ##
+            # Find Proportions
+            ##
+            fcst = forecastsDict[0].yhat
+            fcst = fcst[:, np.newaxis]
+            numBTS = sumMat.shape[1]
+            btsDat = pd.DataFrame(y1.iloc[:, nCols - numBTS:nCols])
+            btsSum = btsDat.sum(0)
+            topSum = sum(y1.iloc[:, 1])
+            props = btsSum / topSum
+            props = props[:, np.newaxis]
+            hatMat = np.dot(np.array(fcst), np.transpose(props))
+
+        newMat = np.empty([hatMat.shape[0], sumMat.shape[0]])
+        for i in range(hatMat.shape[0]):
+            newMat[i, :] = np.dot(sumMat, np.transpose(hatMat[i, :]))
+    if method == 'FP':
+        newMat = forecastProp(forecastsDict, nodes)
+    if method == 'OLS' or method == 'WLSS' or method == 'WLSV':
+        if capF is not None:
+            print(
+                "An error might occur because of how these methods are defined (They can produce negative values). If it does, then please use another method")
+        newMat = optimalComb(forecastsDict, sumMat, method, mse)
+    for key in forecastsDict.keys():
+        values = forecastsDict[key].yhat.values
+        values = newMat[:, key]
+        forecastsDict[key].yhat = values
+        ##
+        # If Logistic fit values with natural log function to revert back to format of input
+        ##
+        if capF is not None:
+            forecastsDict[key].yhat = np.log(forecastsDict[key].yhat)
+
+    return forecastsDict
+
+
+def forecast_all_series(boxcoxT, cap, capF, changepoint_prior_scale, changepoints, daily_seasonality, freq, h, holidays,
+                        holidays_prior_scale, include_history, interval_width, mcmc_samples, method, n_changepoints,
+                        nodes, seasonality_prior_scale, skipFitting, sumMat, uncertainty_samples, weekly_seasonality, y,
+                        yearly_seasonality):
     forecastsDict = {}
     mse = {}
     resids = {}
@@ -35,22 +121,21 @@ def fitForecast(y, h, sumMat, nodes, method, freq, include_history, cap, capF, c
     # If you have a ditionary of Prophet Dataframes already, skip the prophet part, and put all the values into a dictionary
     ##
     if skipFitting == True:
-        for key in range(len(y.columns.tolist())-1):
-            forecastsDict[key] = pd.DataFrame(y.iloc[:,key+1])
-            forecastsDict[key] = forecastsDict[key].rename(columns = {forecastsDict[key].columns[0] : 'yhat'})
-            
+        for key in range(len(y.columns.tolist()) - 1):
+            forecastsDict[key] = pd.DataFrame(y.iloc[:, key + 1])
+            forecastsDict[key] = forecastsDict[key].rename(columns={forecastsDict[key].columns[0]: 'yhat'})
     if skipFitting == False:
-        
+
         if method == 'FP':
-            nForecasts = sum(list(map(sum, nodes)))+1
-        
+            nForecasts = sum(list(map(sum, nodes))) + 1
+
         for node in range(nForecasts):
-            nodeToForecast = pd.concat([y.iloc[:, [0]], y.iloc[:, node+1]], axis = 1)
+            nodeToForecast = pd.concat([y.iloc[:, [0]], y.iloc[:, node + 1]], axis=1)
             if isinstance(cap, pd.DataFrame):
                 cap1 = cap.iloc[:, node]
             else:
                 cap1 = cap
-            if isinstance(capF, pd.DataFrame):    
+            if isinstance(capF, pd.DataFrame):
                 cap2 = capF.iloc[:, node]
             else:
                 cap2 = capF
@@ -67,8 +152,8 @@ def fitForecast(y, h, sumMat, nodes, method, freq, include_history, cap, capF, c
             ##
             with contextlib.redirect_stdout(open(os.devnull, "w")):
                 # Prophet related stuff
-                nodeToForecast = nodeToForecast.rename(columns = {nodeToForecast.columns[0] : 'ds'})
-                nodeToForecast = nodeToForecast.rename(columns = {nodeToForecast.columns[1] : 'y'})
+                nodeToForecast = nodeToForecast.rename(columns={nodeToForecast.columns[0]: 'ds'})
+                nodeToForecast = nodeToForecast.rename(columns={nodeToForecast.columns[1]: 'y'})
                 if capF is None:
                     growth = 'linear'
                     m = Prophet(growth=growth,
@@ -101,15 +186,15 @@ def fitForecast(y, h, sumMat, nodes, method, freq, include_history, cap, capF, c
                                 uncertainty_samples=uncertainty_samples)
                     nodeToForecast['cap'] = cap1
                 m.fit(nodeToForecast)
-                future = m.make_future_dataframe(periods = h, freq = freq, include_history = include_history)
+                future = m.make_future_dataframe(periods=h, freq=freq, include_history=include_history)
                 if capF is not None:
                     future['cap'] = cap2
                 ##
                 # Base Forecasts, Residuals, and MSE
                 ##
                 forecastsDict[node] = m.predict(future)
-                resids[node] = y.iloc[:, node+1] - forecastsDict[node].yhat[:-h].values
-                mse[node] = np.mean(np.array(resids[node])**2)
+                resids[node] = y.iloc[:, node + 1] - forecastsDict[node].yhat[:-h].values
+                mse[node] = np.mean(np.array(resids[node]) ** 2)
                 ##
                 # If logistic use exponential function, so that values can be added correctly
                 ##
@@ -128,96 +213,9 @@ def fitForecast(y, h, sumMat, nodes, method, freq, include_history, cap, capF, c
                         forecastsDict[node].yearly = inv_boxcox(forecastsDict[node].yearly, boxcoxT[node])
                     if "holidays" in forecastsDict[node].columns.tolist():
                         forecastsDict[node].yearly = inv_boxcox(forecastsDict[node].yearly, boxcoxT[node])
-    ##
-    # Now, Revise them
-    ##
-    if method == 'BU' or method == 'AHP' or method == 'PHA':
-        y1 = y.copy()
-        nCols = len(list(forecastsDict.keys()))+1
-        if method == 'BU':
-            '''
-             Pros:
-               No information lost due to aggregation
-             Cons:
-               Bottom level data can be noisy and more challenging to model and forecast
-            '''
-            hatMat = np.zeros([len(forecastsDict[0].yhat),1]) 
-            for key in range(nCols-sumMat.shape[1]-1, nCols-1):
-                f1 = np.array(forecastsDict[key].yhat)
-                f2 = f1[:, np.newaxis]
-                if np.all(hatMat == 0):
-                    hatMat = f2
-                else:
-                    hatMat = np.concatenate((hatMat, f2), axis = 1)
-            
-        if method == 'AHP':
-            '''
-             Pros:
-               Creates reliable aggregate forecasts, and good for low count data
-             Cons:
-               Unable to capture individual series dynamics
-            '''
-            if boxcoxT is not None:
-                for column in range(len(y.columns.tolist())-1):
-                    y1.iloc[:,column+1] = inv_boxcox(y1.iloc[:, column+1], boxcoxT[column])
-            ##
-            # Find Proportions
-            ##
-            fcst = forecastsDict[0].yhat
-            fcst = fcst[:, np.newaxis]
-            numBTS = sumMat.shape[1]
-            btsDat = pd.DataFrame(y1.iloc[:,nCols-numBTS:nCols])
-            divs = np.divide(np.transpose(np.array(btsDat)),np.array(y1.iloc[:,1]))
-            props = divs.mean(1)
-            props = props[:, np.newaxis]
-            hatMat = np.dot(np.array(fcst),np.transpose(props))
-            
-        if method == 'PHA':
-            '''
-             Pros:
-               Creates reliable aggregate forecasts, and good for low count data
-             Cons:
-               Unable to capture individual series dynamics
-            '''
-            if boxcoxT is not None:
-                for column in range(len(y.columns.tolist())-1):
-                    y1.iloc[:,column+1] = inv_boxcox(y1.iloc[:, column+1], boxcoxT[column])
-            ##
-            # Find Proportions
-            ##
-            fcst = forecastsDict[0].yhat
-            fcst = fcst[:, np.newaxis]
-            numBTS = sumMat.shape[1]
-            btsDat = pd.DataFrame(y1.iloc[:,nCols-numBTS:nCols])
-            btsSum = btsDat.sum(0)
-            topSum = sum(y1.iloc[:,1])
-            props = btsSum/topSum
-            props = props[:, np.newaxis]
-            hatMat = np.dot(np.array(fcst),np.transpose(props))
-        
-        newMat = np.empty([hatMat.shape[0],sumMat.shape[0]])
-        for i in range(hatMat.shape[0]):
-            newMat[i,:] = np.dot(sumMat, np.transpose(hatMat[i,:]))
-            
-    if method == 'FP':
-        newMat = forecastProp(forecastsDict, nodes)
-    if method == 'OLS' or method == 'WLSS' or method == 'WLSV':
-        if capF is not None:
-            print("An error might occur because of how these methods are defined (They can produce negative values). If it does, then please use another method")
-        newMat = optimalComb(forecastsDict, sumMat, method, mse)
-    
-    for key in forecastsDict.keys():
-        values = forecastsDict[key].yhat.values
-        values = newMat[:,key]
-        forecastsDict[key].yhat = values
-        ##
-        # If Logistic fit values with natural log function to revert back to format of input
-        ##
-        if capF is not None:
-            forecastsDict[key].yhat = np.log(forecastsDict[key].yhat)
-        
-    return forecastsDict
-    
+    return forecastsDict, mse
+
+
 #%%    
 def forecastProp(forecastsDict, nodes):
     '''

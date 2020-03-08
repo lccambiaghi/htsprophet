@@ -1,13 +1,17 @@
 [tool.poetry]
-name = "htsprophet-fork"
+name = "htsprophet"
 version = "0.1.0"
 description = ""
-authors = ["Your Name <you@example.com>"]
+authors = ["Luca Cambiaghi <luca.cambiaghi@maersk.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.7"
-htsprophet = "^0.1.0"
+# poetry run pip install htsprophet
 
+ptvsd = "^4.3.2"
+pyarrow = "^0.16.0"
+ipython = "^7.13.0"
+scipy = "^1.4.1"
 [tool.poetry.dev-dependencies]
 
 [build-system]

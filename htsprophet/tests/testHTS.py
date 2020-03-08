@@ -1,7 +1,7 @@
 import unittest
 import pandas as pd
 import numpy as np
-from htsprophet.hts import hts, makeWeekly, orderHier
+from htsprophet.hts import forecast_hts, makeWeekly, orderHier
 
 
 class testHTSOut(unittest.TestCase):
@@ -37,7 +37,7 @@ class testHTSOut(unittest.TestCase):
         ##
         # Test if bottom up is working correctly
         ##
-        myDict = hts(data2, 52, nodes, freq = 'W', method = "BU")
+        myDict = forecast_hts(data2, 52, nodes, freq ='W', method ="BU")
         self.assertIsNotNone(myDict)
         self.assertEqual(len(myDict), sum(map(sum, nodes))+1)
         ##
@@ -56,7 +56,7 @@ class testHTSOut(unittest.TestCase):
         ##
         # Test if average historical proportions is working correctly
         ##
-        myDict = hts(data2, 52, nodes, freq = 'W', method = "AHP")
+        myDict = forecast_hts(data2, 52, nodes, freq ='W', method ="AHP")
         self.assertIsNotNone(myDict)
         self.assertEqual(len(myDict), sum(map(sum, nodes))+1)
         ##
@@ -75,7 +75,7 @@ class testHTSOut(unittest.TestCase):
         ##
         # Test if proportion of historical averages is working correctly
         ##
-        myDict = hts(data2, 52, nodes, freq = 'W', method = "PHA")
+        myDict = forecast_hts(data2, 52, nodes, freq ='W', method ="PHA")
         self.assertIsNotNone(myDict)
         self.assertEqual(len(myDict), sum(map(sum, nodes))+1)
         ##
@@ -94,7 +94,7 @@ class testHTSOut(unittest.TestCase):
         ##
         # Test if forecast proportions is working correctly
         ##
-        myDict = hts(data2, 52, nodes, freq = 'W', method = "FP")
+        myDict = forecast_hts(data2, 52, nodes, freq ='W', method ="FP")
         self.assertIsNotNone(myDict)
         self.assertEqual(len(myDict), sum(map(sum, nodes))+1)
         ##
@@ -113,7 +113,7 @@ class testHTSOut(unittest.TestCase):
         ##
         # Test if ordinary least squares is working correctly
         ##
-        myDict = hts(data2, 52, nodes, freq = 'W', method = "OLS")
+        myDict = forecast_hts(data2, 52, nodes, freq ='W', method ="OLS")
         self.assertIsNotNone(myDict)
         self.assertEqual(len(myDict), sum(map(sum, nodes))+1)
         ##
@@ -132,7 +132,7 @@ class testHTSOut(unittest.TestCase):
         ##
         # Test if structurally weighted least squares is working correctly
         ##
-        myDict = hts(data2, 52, nodes, freq = 'W', method = "WLSS")
+        myDict = forecast_hts(data2, 52, nodes, freq ='W', method ="WLSS")
         self.assertIsNotNone(myDict)
         self.assertEqual(len(myDict), sum(map(sum, nodes))+1)
         ##
@@ -151,7 +151,7 @@ class testHTSOut(unittest.TestCase):
         ##
         # Test if variance weighted least squares is working correctly
         ##
-        myDict = hts(data2, 52, nodes, freq = 'W', method = "WLSV")
+        myDict = forecast_hts(data2, 52, nodes, freq ='W', method ="WLSV")
         self.assertIsNotNone(myDict)
         self.assertEqual(len(myDict), sum(map(sum, nodes))+1)
         ##
@@ -170,7 +170,7 @@ class testHTSOut(unittest.TestCase):
         ##
         # Test if cross validation is working correctly
         ##
-        myDict = hts(data2, 52, nodes, freq = 'W', method = "cvSelect")
+        myDict = forecast_hts(data2, 52, nodes, freq ='W', method ="cvSelect")
         self.assertIsNotNone(myDict)
         self.assertEqual(len(myDict), sum(map(sum, nodes))+1)
         ##
@@ -190,7 +190,7 @@ class testHTSOut(unittest.TestCase):
         # Test to see if BoxCox transform changed the data at all
         ##
         data3 = data2
-        myDict = hts(data2, 52, nodes, freq = 'W', method = "cvSelect", transform = "BoxCox")
+        myDict = forecast_hts(data2, 52, nodes, freq ='W', method ="cvSelect", transform ="BoxCox")
         self.assertIsNotNone(myDict)
         self.assertEqual(len(myDict), sum(map(sum, nodes))+1)
         self.assertEqual(len(myDict['Total'].yhat), data2.shape[0]+52)
@@ -200,7 +200,7 @@ class testHTSOut(unittest.TestCase):
         # Test if Logistic data is working correctly
         ##
         data2.iloc[:,1:] = np.log(data2.iloc[:,1:]+1)
-        myDict = hts(data2, 52, nodes, freq = 'W', method = "FP", cap = 11, capF = 13)
+        myDict = forecast_hts(data2, 52, nodes, freq ='W', method ="FP", cap = 11, capF = 13)
         self.assertIsNotNone(myDict)
         self.assertEqual(len(myDict), sum(map(sum, nodes))+1)
         ##
@@ -220,19 +220,19 @@ class testHTSOut(unittest.TestCase):
         # Testing for system exit
         ##
         with self.assertRaises(SystemExit):
-            myDict = hts(data2, 52, nodes, freq = 'W', method = "Yellow", cap = 11, capF = 13)
+            myDict = forecast_hts(data2, 52, nodes, freq ='W', method ="Yellow", cap = 11, capF = 13)
         with self.assertRaises(SystemExit):
-            myDict = hts(data2, 0, nodes, freq = 'W', method = "FP", cap = 11, capF = 13)
+            myDict = forecast_hts(data2, 0, nodes, freq ='W', method ="FP", cap = 11, capF = 13)
         with self.assertRaises(SystemExit):
-            myDict = hts(data2, 52, [[72],[8]], freq = 'W', method = "FP", cap = 11, capF = 13)
+            myDict = forecast_hts(data2, 52, [[72], [8]], freq ='W', method ="FP", cap = 11, capF = 13)
         with self.assertRaises(SystemExit):
-            myDict = hts(data2, 52, nodes, freq = 'W', method = "FP", cap = 'mycap', capF = 13)
+            myDict = forecast_hts(data2, 52, nodes, freq ='W', method ="FP", cap ='mycap', capF = 13)
         with self.assertRaises(SystemExit):
-            myDict = hts(data2, 52, nodes, freq = 'W', method = "FP", cap = 11, capF = 'mycap')
+            myDict = forecast_hts(data2, 52, nodes, freq ='W', method ="FP", cap = 11, capF ='mycap')
         with self.assertRaises(SystemExit):
-            myDict = hts(data2, 52, nodes, freq = 'W', method = "FP", cap = pd.DataFrame(nodes), capF = 13)
+            myDict = forecast_hts(data2, 52, nodes, freq ='W', method ="FP", cap = pd.DataFrame(nodes), capF = 13)
         with self.assertRaises(SystemExit):
-            myDict = hts(data2, 52, nodes, freq = 'W', method = "FP", cap = 11, capF = pd.DataFrame(nodes))
+            myDict = forecast_hts(data2, 52, nodes, freq ='W', method ="FP", cap = 11, capF = pd.DataFrame(nodes))
         
 if __name__ == '__main__':
     unittest.main()

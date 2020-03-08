@@ -223,7 +223,7 @@ def plotNodeComponents(dictframe, column, holidays = None, uncertainty=False, pl
 
     if trend:
         plotTrend(nodeToPlot, ax=ax, uncertainty=uncertainty, plotCap=plotCap)
-    if holiday:
+    if holidays:
         plotHolidays(nodeToPlot, holidays=holidays, ax=ax, uncertainty=uncertainty)
     if weekly:
         plotWeekly(nodeToPlot, ax=ax, uncertainty=uncertainty, weeklyStart = weeklyStart)
