@@ -341,6 +341,7 @@ def boxcox_transform(transform, y):
             warnings.simplefilter("error", RuntimeWarning)
             boxcoxT = [None] * (len(y.columns.tolist()) - 1)
             try:
+                # https://github.com/alkaline-ml/pmdarima/blob/master/pmdarima/preprocessing/endog/boxcox.py
                 for column in range(len(y.columns.tolist()) - 1):
                     y2.iloc[:, column + 1], boxcoxT[column] = boxcox(y2.iloc[:, column + 1])
                 y = y2

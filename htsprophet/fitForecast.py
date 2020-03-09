@@ -22,6 +22,7 @@ def fitForecast(y, h, sumMat, nodes, method, freq, include_history, cap, capF, c
 
 
 def reconcile_forecasts(boxcoxT, capF, forecastsDict, method, mse, nodes, sumMat, y):
+    # https://otexts.com/fpp2/top-down.html
     if method == 'BU' or method == 'AHP' or method == 'PHA':
         y1 = y.copy()
         nCols = len(list(forecastsDict.keys())) + 1
