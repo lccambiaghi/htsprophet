@@ -15,43 +15,45 @@ https://facebookincubator.github.io/prophet/
 It was my intention to make some of the code look similar to certain sections in the Prophet and (Hyndman's) hts packages
 
 """
+import sys
+
+import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
 from matplotlib.dates import MonthLocator, num2date
 from matplotlib.ticker import FuncFormatter
-import pandas as pd
-import numpy as np
-import sys
 
-#%%
-def plotNode(dictframe, column, h = 1, xlabel = 'ds', ylabel = 'y', startFrom = 0, uncertainty = False, ax = None):
-    '''
+
+# %%
+def plotNode(dictframe, column, h=1, xlabel='ds', ylabel='y', startFrom=0, uncertainty=False, ax=None):
+    """
     Parameters
     ------------------
-    
+
     dictframe - (dict) The dictionary of dataframes that is the output of the hts function
-    
+
     column - (string) column title that you want to plot
-    
+
     h - (int) number of steps in the forecast same as input to hts function
-    
+
     xlabel - (string) label for the graph's x axis
-    
+
     ylabel - (string) label for the graph's y axis
-    
+
     start_from - (int) the number of values to skip at the beginning of yhat so that you can zoom in
-    
+
     uncertainty - (Boolean) include the prediction intervals or not
-    
+
     ax - (axes object) any axes object thats already created that you want to pass to the plot function
-    
+
     Returns
     ------------------
-    
+
     plot of that node's forecast
-    
-    '''
+
+    """
     nodeToPlot = dictframe[column]
-    
+
     if ax is None:
         fig = plt.figure(facecolor='w', figsize=(10, 6))
         ax = fig.add_subplot(111)
@@ -61,7 +63,7 @@ def plotNode(dictframe, column, h = 1, xlabel = 'ds', ylabel = 'y', startFrom = 
     # plot the yhat forecast as a solid line and then the h-step ahead forecast as a dashed line
     ##
     ax.plot(nodeToPlot['ds'].values[startFrom:-h], nodeToPlot['yhat'][startFrom:-h], ls='-', c='#0072B2')
-    ax.plot(nodeToPlot['ds'].values[-h:], nodeToPlot['yhat'][-h:], dashes = [2,1])
+    ax.plot(nodeToPlot['ds'].values[-h:], nodeToPlot['yhat'][-h:], dashes=[2, 1])
     ##
     # plot the cap and uncertainty if necessary
     ##
@@ -77,9 +79,9 @@ def plotNode(dictframe, column, h = 1, xlabel = 'ds', ylabel = 'y', startFrom = 
     fig.tight_layout()
     return fig
 
-#%%
-def plotWeekly(dictframe, ax, uncertainty, weeklyStart, color='#0072B2'):
 
+# %%
+def plotWeekly(dictframe, ax, uncertainty, weeklyStart, color='#0072B2'):
     if ax is None:
         figW = plt.figure(facecolor='w', figsize=(10, 6))
         ax = figW.add_subplot(111)
@@ -105,7 +107,8 @@ def plotWeekly(dictframe, ax, uncertainty, weeklyStart, color='#0072B2'):
     # Plot uncertainty if necessary
     ##
     if uncertainty:
-        ax.fill_between(range(len(days)),dictframe['weekly_lower'][ind], dictframe['weekly_upper'][ind],color=color, alpha=0.2)
+        ax.fill_between(range(len(days)), dictframe['weekly_lower'][ind], dictframe['weekly_upper'][ind], color=color,
+                        alpha=0.2)
     ax.grid(True, which='major', c='gray', ls='-', lw=1, alpha=0.2)
     ax.set_xticks(range(len(days)))
     ax.set_xticklabels(dictframe['ds'][ind].dt.weekday_name)
@@ -113,9 +116,9 @@ def plotWeekly(dictframe, ax, uncertainty, weeklyStart, color='#0072B2'):
     ax.set_ylabel('weekly')
     figW.tight_layout()
     return figW
-    
-def plotYearly(dictframe, ax, uncertainty, color='#0072B2'):
 
+
+def plotYearly(dictframe, ax, uncertainty, color='#0072B2'):
     if ax is None:
         figY = plt.figure(facecolor='w', figsize=(10, 6))
         ax = figY.add_subplot(111)
@@ -126,14 +129,15 @@ def plotYearly(dictframe, ax, uncertainty, color='#0072B2'):
     ##
     months = dictframe.ds.dt.month
     ind = []
-    for month in range(1,13):
+    for month in range(1, 13):
         ind.append(max(months[months == month].index.tolist()))
     ##
     # Plot from the minimum of those maximums on (this will almost certainly result in only 1 year plotted)
     ##
     ax.plot(dictframe['ds'][min(ind):], dictframe['yearly'][min(ind):], ls='-', c=color)
     if uncertainty:
-        ax.fill_between(dictframe['ds'].values[min(ind):], dictframe['yearly_lower'][min(ind):], dictframe['yearly_upper'][min(ind):], color=color, alpha=0.2)
+        ax.fill_between(dictframe['ds'].values[min(ind):], dictframe['yearly_lower'][min(ind):],
+                        dictframe['yearly_upper'][min(ind):], color=color, alpha=0.2)
     ax.grid(True, which='major', c='gray', ls='-', lw=1, alpha=0.2)
     months = MonthLocator(range(1, 13), bymonthday=1, interval=2)
     ax.xaxis.set_major_formatter(FuncFormatter(
@@ -143,6 +147,7 @@ def plotYearly(dictframe, ax, uncertainty, color='#0072B2'):
     ax.set_ylabel('yearly')
     figY.tight_layout()
     return figY
+
 
 def plotHolidays(dictframe, holidays, ax, uncertainty, color='#0072B2'):
     ##
@@ -161,7 +166,7 @@ def plotHolidays(dictframe, holidays, ax, uncertainty, color='#0072B2'):
     # in time. Since it is just for the visualization we will not
     # worry about it now.
     ax.plot(dictframe['ds'].values, yHoliday, ls='-',
-                       c=color)
+            c=color)
     if uncertainty:
         ax.fill_between(dictframe['ds'].values, yHolidayL, yHolidayU, color=color, alpha=0.2)
     ax.grid(True, which='major', c='gray', ls='-', lw=1, alpha=0.2)
@@ -169,6 +174,7 @@ def plotHolidays(dictframe, holidays, ax, uncertainty, color='#0072B2'):
     ax.set_ylabel('holidays')
     figH.tight_layout()
     return figH
+
 
 def plotTrend(dictframe, ax, uncertainty, plotCap, color='#0072B2'):
     ##
@@ -183,36 +189,38 @@ def plotTrend(dictframe, ax, uncertainty, plotCap, color='#0072B2'):
     if 'cap' in dictframe and plotCap:
         ax.plot(dictframe['ds'].values, dictframe['cap'], ls='--', c='k')
     if uncertainty:
-       ax.fill_between(dictframe['ds'].values, dictframe['trend_lower'], dictframe['trend_upper'], color=color, alpha=0.2)
+        ax.fill_between(dictframe['ds'].values, dictframe['trend_lower'], dictframe['trend_upper'], color=color,
+                        alpha=0.2)
     ax.grid(True, which='major', c='gray', ls='-', lw=1, alpha=0.2)
     ax.set_xlabel('ds')
     ax.set_ylabel('trend')
     figT.tight_layout()
     return figT
 
-def plotNodeComponents(dictframe, column, holidays = None, uncertainty=False, plotCap=False, weeklyStart = 0, ax=None,):
-    '''
+
+def plotNodeComponents(dictframe, column, holidays=None, uncertainty=False, plotCap=False, weeklyStart=0, ax=None, ):
+    """
     Parameters
     ------------------
-    
+
     dictframe - (dict) The dictionary of dataframes that is the output of the hts function
-    
+
     column - (string) column title that you want to plot
-    
+
     uncertainty - (Boolean) include the prediction intervals or not
-    
+
     plot_cap - (Boolean) include the cap lines or not
-    
+
     weekly_start - (int) an integer that specifies the first day on the x axis of the plot
-    
+
     ax - (axes object) any axes object thats already created that you want to pass to the plot function
-    
+
     Returns
     ------------------
-    
+
     plot of that node's trend, seasonalities, holidays, etc.
-    
-    '''
+
+    """
     nodeToPlot = dictframe[column]
     colNames = nodeToPlot.columns.tolist()
     trend = "trend" in colNames
@@ -226,40 +234,41 @@ def plotNodeComponents(dictframe, column, holidays = None, uncertainty=False, pl
     if holidays:
         plotHolidays(nodeToPlot, holidays=holidays, ax=ax, uncertainty=uncertainty)
     if weekly:
-        plotWeekly(nodeToPlot, ax=ax, uncertainty=uncertainty, weeklyStart = weeklyStart)
+        plotWeekly(nodeToPlot, ax=ax, uncertainty=uncertainty, weeklyStart=weeklyStart)
     if yearly:
         plotYearly(nodeToPlot, ax=ax, uncertainty=uncertainty)
-    
+
     return
 
-#%%
-def plotChild(dictframe, column, h = 1, xlabel = 'ds', ylabel = 'y', startFrom = 0, uncertainty = False, ax = None):
-    '''
+
+# %%
+def plotChild(dictframe, column, h=1, xlabel='ds', ylabel='y', startFrom=0, uncertainty=False, ax=None):
+    """
     Parameters
     ------------------
-    
+
     dictframe - (dict) The dictionary of dataframes that is the output of the hts function
-    
+
     column - (string) column title that you want to plot
-    
+
     h - (int) number of steps in the forecast same as input to hts function
-    
+
     xlabel - (string) label for the graph's x axis
-    
+
     ylabel - (string) label for the graph's y axis
-    
+
     start_from - (int) the number of values to skip at the beginning of yhat so that you can zoom in
-    
+
     uncertainty - (Boolean) include the prediction intervals or not
-    
+
     ax - (axes object) any axes object thats already created that you want to pass to the plot function
-    
+
     Returns
     ------------------
-    
+
     plot of that node and its children's forecast
-    
-    '''
+
+    """
     ##
     # Set the color map to brg so that there are enough dark and discernably different choices
     ##
@@ -270,18 +279,18 @@ def plotChild(dictframe, column, h = 1, xlabel = 'ds', ylabel = 'y', startFrom =
     colOptions = list(dictframe.keys())
     allChildren = [s for s in colOptions if column in s]
     countChildren = [s.count('_') for s in colOptions if column in s]
-    if min(countChildren)+1 not in countChildren and column != "Total":
+    if min(countChildren) + 1 not in countChildren and column != "Total":
         sys.exit("the specified column doesn't have children")
-    if min(countChildren)+2 not in countChildren:
+    if min(countChildren) + 2 not in countChildren:
         columnsToPlot = allChildren
     else:
-        ind = countChildren.index(min(countChildren)+2)
+        ind = countChildren.index(min(countChildren) + 2)
         columnsToPlot = allChildren[0:ind]
     if column == 'Total':
         allChildren = [s for s in colOptions]
         countChildren = [s.count('_') for s in colOptions]
         if max(countChildren) > 0:
-            ind = countChildren.index(min(countChildren)+1)
+            ind = countChildren.index(min(countChildren) + 1)
             columnsToPlot = allChildren[0:ind]
         else:
             columnsToPlot = allChildren
@@ -297,20 +306,22 @@ def plotChild(dictframe, column, h = 1, xlabel = 'ds', ylabel = 'y', startFrom =
             ax = fig.add_subplot(111)
         else:
             fig = ax.get_figure()
-        ax.plot(nodeToPlot['ds'].values[startFrom:-h], nodeToPlot['yhat'][startFrom:-h], ls='-', c = cmap(float(i)/N), label = column)
-        ax.plot(nodeToPlot['ds'].values[-h:], nodeToPlot['yhat'][-h:], dashes = [2,1], c = cmap(float(i)/N), label = '_nolegend_')
+        ax.plot(nodeToPlot['ds'].values[startFrom:-h], nodeToPlot['yhat'][startFrom:-h], ls='-', c=cmap(float(i) / N),
+                label=column)
+        ax.plot(nodeToPlot['ds'].values[-h:], nodeToPlot['yhat'][-h:], dashes=[2, 1], c=cmap(float(i) / N),
+                label='_nolegend_')
         if 'cap' in nodeToPlot:
             ax.plot(nodeToPlot['ds'].values[startFrom:], nodeToPlot['cap'][startFrom:], ls='--', c='k')
         if uncertainty:
             ax.fill_between(nodeToPlot['ds'].values[startFrom:], nodeToPlot['yhat_lower'][startFrom:],
                             nodeToPlot['yhat_upper'][startFrom:], color='#0072B2',
                             alpha=0.2)
-        i+=1
-    
-    ax.grid(True, which='major', color='gray', ls='-', lw=1, alpha = 0.2)
+        i += 1
+
+    ax.grid(True, which='major', color='gray', ls='-', lw=1, alpha=0.2)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.legend()
     fig.tight_layout()
-    
+
     return fig

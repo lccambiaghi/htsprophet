@@ -1,18 +1,23 @@
-import pandas as pd
-import numpy as np
 import sys
-from sklearn.model_selection import TimeSeriesSplit
-from htsprophet.fitForecast import fitForecast
-from scipy.stats import boxcox
-from scipy.special import inv_boxcox
 from multiprocessing.dummy import Pool as ThreadPool
 
+import numpy as np
+import pandas as pd
+from scipy.special import inv_boxcox
+from scipy.stats import boxcox
+from sklearn.model_selection import TimeSeriesSplit
 
-#%%
-def forecast_hts(y, h = 1, nodes = [[2]], method='OLS', freq ='D', transform = None, include_history = True, cap = None, capF = None, changepoints = None, \
-                 n_changepoints = 25, yearly_seasonality = 'auto', weekly_seasonality = 'auto', daily_seasonality = 'auto', holidays = None, seasonality_prior_scale = 10.0, \
-                 holidays_prior_scale = 10.0, changepoint_prior_scale = 0.05, mcmc_samples = 0, interval_width = 0.80, uncertainty_samples = 0, skipFitting = False, numThreads = 0):
-    '''
+from htsprophet.fitForecast import fitForecast
+
+
+# %%
+def forecast_hts(y, h=1, nodes=None, method='OLS', freq='D', transform=None, include_history=True, cap=None, capF=None,
+                 changepoints=None,
+                 n_changepoints=25, yearly_seasonality='auto', weekly_seasonality='auto', daily_seasonality='auto',
+                 holidays=None, seasonality_prior_scale=10.0,
+                 holidays_prior_scale=10.0, changepoint_prior_scale=0.05, mcmc_samples=0, interval_width=0.80,
+                 uncertainty_samples=0, skipFitting=False, numThreads=0):
+    """
     Parameters
     ----------------
      y - dataframe of time-series data, or if you want to skip fitting, a dictionary of prophet base forecast dataframes
@@ -32,15 +37,15 @@ def forecast_hts(y, h = 1, nodes = [[2]], method='OLS', freq ='D', transform = N
                    ...
                    ..
                    .   And so on...
-    
+
      h - number of step ahead forecasts to make (int)
-    
+
      nodes - a list or list of lists of the number of child nodes at each level
      Ex. if the hierarchy is one total with two child nodes that comprise it, the nodes input would be [2]
-     
-     method - String  the type of hierarchical forecasting method that the user wants to use. 
+
+     method - String  the type of hierarchical forecasting method that the user wants to use.
                 Options:
-                "OLS" - optimal combination by Original Least Squares (Default), 
+                "OLS" - optimal combination by Original Least Squares (Default),
                 "WLSS" - optimal combination by Structurally Weighted Least Squares
                 "WLSV" - optimal combination by Error Variance Weighted Least Squares
                 "FP" - forcasted proportions (top-down)
@@ -48,38 +53,63 @@ def forecast_hts(y, h = 1, nodes = [[2]], method='OLS', freq ='D', transform = N
                 "AHP" - average historical proportions (top-down)
                 "BU" - bottom-up (simple addition)
                 "CVselect" - select which method is best for you based on 3-fold Cross validation (longer run time)
-     
-     freq - (Time Frequency) input for the forecasting function of Prophet 
-     
+
+     freq - (Time Frequency) input for the forecasting function of Prophet
+
      transform - (None or "BoxCox") Do you want to transform your data before fitting the prophet function? If yes, type "BoxCox"
-     
+
      include_history - (Boolean) input for the forecasting function of Prophet
-                
+
      cap - (Dataframe or Constant) carrying capacity of the input time series.  If it is a dataframe, then
                                    the number of columns must equal len(y.columns) - 1
-                                   
+
      capF - (Dataframe or Constant) carrying capacity of the future time series.  If it is a dataframe, then
                                     the number of columns must equal len(y.columns) - 1
-     
+
      changepoints - (DataFrame or List) changepoints for the model to consider fitting. If it is a dataframe, then
                                         the number of columns must equal len(y.columns) - 1
-     
+
      n_changepoints - (constant or list) changepoints for the model to consider fitting. If it is a list, then
                                          the number of items must equal len(y.columns) - 1
-                                         
+
      skipFitting - (Boolean) if y is already a dictionary of dataframes, set this to True, and DO NOT run with method = "cvSelect" or transform = "BoxCox"
-     
-     numThreads - (int) number of threads you want to use when running cvSelect. Note: 14 has shown to decrease runtime by 10 percent 
-                                 
+
+     numThreads - (int) number of threads you want to use when running cvSelect. Note: 14 has shown to decrease runtime by 10 percent
+
      All other inputs - see Prophet
-     
+
     Returns
     -----------------
      ynew - a dictionary of DataFrames with predictions, seasonalities and trends that can all be plotted
-    
-    '''
+     :param y:
+     :param h:
+     :param nodes:
+     :param method:
+     :param freq:
+     :param transform:
+     :param include_history:
+     :param cap:
+     :param capF:
+     :param changepoints:
+     :param n_changepoints:
+     :param yearly_seasonality:
+     :param weekly_seasonality:
+     :param daily_seasonality:
+     :param holidays:
+     :param seasonality_prior_scale:
+     :param holidays_prior_scale:
+     :param changepoint_prior_scale:
+     :param mcmc_samples:
+     :param interval_width:
+     :param uncertainty_samples:
+     :param skipFitting:
+     :param numThreads:
+
+    """
     # Error Handling
     ##        
+    if nodes is None:
+        nodes = [[2]]
     check_inputs(cap, capF, h, method, nodes, y)
     ##
     # Transform Variables
@@ -98,12 +128,12 @@ def forecast_hts(y, h = 1, nodes = [[2]], method='OLS', freq ='D', transform = N
     ##    
     if transform is not None:
         if transform == 'BoxCox':
-            for column in range(len(y.columns.tolist())-1):
-                y.iloc[:,column+1] = inv_boxcox(y.iloc[:, column+1], boxcoxT[column])
+            for column in range(len(y.columns.tolist()) - 1):
+                y.iloc[:, column + 1] = inv_boxcox(y.iloc[:, column + 1], boxcoxT[column])
     ##
     # Put the values back in the dictionary for skipFitting
     ##
-    if skipFitting == True:
+    if skipFitting:
         i = 0
         for key in theDictionary.keys():
             for column in theDictionary[key].columns:
@@ -116,30 +146,30 @@ def forecast_hts(y, h = 1, nodes = [[2]], method='OLS', freq ='D', transform = N
 
     i = -2
     for column in y:
-        i += 1   
+        i += 1
         if i == -1:
             continue
         else:
             ynew[column] = ynew.pop(i)
-    
+
     return ynew
 
 
 def get_summing_mat(nodes):
-    '''
+    """
      This function creates a summing matrix for the bottom up and optimal combination approaches
      All the inputs are the same as above
      The output is a summing matrix, see Rob Hyndman's "Forecasting: principles and practice" Section 9.4
-    '''
+    """
     numAtLev = list(map(sum, nodes))
     numLevs = len(numAtLev)
-    top = np.ones(numAtLev[-1])       #Create top row, which is just all ones
-    blMat = np.identity(numAtLev[-1]) #Create Identity Matrix for Bottom level Nodes
+    top = np.ones(numAtLev[-1])  # Create top row, which is just all ones
+    blMat = np.identity(numAtLev[-1])  # Create Identity Matrix for Bottom level Nodes
     finalMat = blMat
     ##
     # These two loops build the matrix from bottom to top
     ##
-    for lev in range(numLevs-1):
+    for lev in range(numLevs - 1):
         summing = nodes[-(lev + 1)]
         count = 0
         a = 0
@@ -150,9 +180,9 @@ def get_summing_mat(nodes):
             a = blMat[count:num2sumInd, :]
             count += num2sum
             if np.all(B == 0):
-                B = a.sum(axis = 0)
+                B = a.sum(axis=0)
             else:
-                B = np.vstack((B, a.sum(axis = 0)))
+                B = np.vstack((B, a.sum(axis=0)))
         finalMat = np.vstack((B, finalMat))
         blMat = B
     ##
@@ -174,7 +204,7 @@ def fit_predict(boxcoxT, cap, capF, changepoint_prior_scale, changepoints, daily
                               uncertainty_samples, weekly_seasonality, y, yearly_seasonality)
     # if methods is not CVSelect, fit with specified method
     else:
-        if skipFitting == True:
+        if skipFitting:
             theDictionary = y
             i = 0
             for key in y.keys():
@@ -183,9 +213,9 @@ def fit_predict(boxcoxT, cap, capF, changepoint_prior_scale, changepoints, daily
                 y[i] = theDictionary[key].yhat
                 i += 1
         sumMat = get_summing_mat(nodes)
-        ynew = fitForecast(y, h, sumMat, nodes, method, freq, include_history, cap, capF, changepoints, n_changepoints, \
+        ynew = fitForecast(y, h, sumMat, nodes, method, freq, include_history, cap, capF, changepoints, n_changepoints,
                            yearly_seasonality, weekly_seasonality, daily_seasonality, holidays, seasonality_prior_scale,
-                           holidays_prior_scale, \
+                           holidays_prior_scale,
                            changepoint_prior_scale, mcmc_samples, interval_width, uncertainty_samples, boxcoxT,
                            skipFitting)
 
@@ -222,9 +252,9 @@ def fit_predict_CV(boxcoxT, cap, capF, changepoint_prior_scale, changepoints, da
             results = pool.starmap(fitForecast,
                                    zip([y.iloc[trainIndex, :]] * 7, [len(testIndex)] * 7, [sumMat] * 7, [nodes] * 7,
                                        methodList, [freq] * 7, [include_history] * 7, [cap] * 7, [capF] * 7,
-                                       [changepoints] * 7, [n_changepoints] * 7, \
+                                       [changepoints] * 7, [n_changepoints] * 7,
                                        [yearly_seasonality] * 7, [weekly_seasonality] * 7, [daily_seasonality] * 7,
-                                       [holidays] * 7, [seasonality_prior_scale] * 7, [holidays_prior_scale] * 7, \
+                                       [holidays] * 7, [seasonality_prior_scale] * 7, [holidays_prior_scale] * 7,
                                        [changepoint_prior_scale] * 7, [mcmc_samples] * 7, [interval_width] * 7,
                                        [uncertainty_samples] * 7, [boxcoxT] * 7, [skipFitting] * 7))
             pool.close()
@@ -232,45 +262,45 @@ def fit_predict_CV(boxcoxT, cap, capF, changepoint_prior_scale, changepoints, da
             ynew1, ynew2, ynew3, ynew4, ynew5, ynew6, ynew7 = results
         else:
             ynew1 = fitForecast(y.iloc[trainIndex, :], len(testIndex), sumMat, nodes, methodList[0], freq,
-                                include_history, cap, capF, changepoints, n_changepoints, \
+                                include_history, cap, capF, changepoints, n_changepoints,
                                 yearly_seasonality, weekly_seasonality, daily_seasonality, holidays,
-                                seasonality_prior_scale, holidays_prior_scale, \
+                                seasonality_prior_scale, holidays_prior_scale,
                                 changepoint_prior_scale, mcmc_samples, interval_width, uncertainty_samples, boxcoxT,
                                 skipFitting)
             ynew2 = fitForecast(y.iloc[trainIndex, :], len(testIndex), sumMat, nodes, methodList[1], freq,
-                                include_history, cap, capF, changepoints, n_changepoints, \
+                                include_history, cap, capF, changepoints, n_changepoints,
                                 yearly_seasonality, weekly_seasonality, daily_seasonality, holidays,
-                                seasonality_prior_scale, holidays_prior_scale, \
+                                seasonality_prior_scale, holidays_prior_scale,
                                 changepoint_prior_scale, mcmc_samples, interval_width, uncertainty_samples, boxcoxT,
                                 skipFitting)
             ynew3 = fitForecast(y.iloc[trainIndex, :], len(testIndex), sumMat, nodes, methodList[2], freq,
-                                include_history, cap, capF, changepoints, n_changepoints, \
+                                include_history, cap, capF, changepoints, n_changepoints,
                                 yearly_seasonality, weekly_seasonality, daily_seasonality, holidays,
-                                seasonality_prior_scale, holidays_prior_scale, \
+                                seasonality_prior_scale, holidays_prior_scale,
                                 changepoint_prior_scale, mcmc_samples, interval_width, uncertainty_samples, boxcoxT,
                                 skipFitting)
             ynew4 = fitForecast(y.iloc[trainIndex, :], len(testIndex), sumMat, nodes, methodList[3], freq,
-                                include_history, cap, capF, changepoints, n_changepoints, \
+                                include_history, cap, capF, changepoints, n_changepoints,
                                 yearly_seasonality, weekly_seasonality, daily_seasonality, holidays,
-                                seasonality_prior_scale, holidays_prior_scale, \
+                                seasonality_prior_scale, holidays_prior_scale,
                                 changepoint_prior_scale, mcmc_samples, interval_width, uncertainty_samples, boxcoxT,
                                 skipFitting)
             ynew5 = fitForecast(y.iloc[trainIndex, :], len(testIndex), sumMat, nodes, methodList[4], freq,
-                                include_history, cap, capF, changepoints, n_changepoints, \
+                                include_history, cap, capF, changepoints, n_changepoints,
                                 yearly_seasonality, weekly_seasonality, daily_seasonality, holidays,
-                                seasonality_prior_scale, holidays_prior_scale, \
+                                seasonality_prior_scale, holidays_prior_scale,
                                 changepoint_prior_scale, mcmc_samples, interval_width, uncertainty_samples, boxcoxT,
                                 skipFitting)
             ynew6 = fitForecast(y.iloc[trainIndex, :], len(testIndex), sumMat, nodes, methodList[5], freq,
-                                include_history, cap, capF, changepoints, n_changepoints, \
+                                include_history, cap, capF, changepoints, n_changepoints,
                                 yearly_seasonality, weekly_seasonality, daily_seasonality, holidays,
-                                seasonality_prior_scale, holidays_prior_scale, \
+                                seasonality_prior_scale, holidays_prior_scale,
                                 changepoint_prior_scale, mcmc_samples, interval_width, uncertainty_samples, boxcoxT,
                                 skipFitting)
             ynew7 = fitForecast(y.iloc[trainIndex, :], len(testIndex), sumMat, nodes, methodList[6], freq,
-                                include_history, cap, capF, changepoints, n_changepoints, \
+                                include_history, cap, capF, changepoints, n_changepoints,
                                 yearly_seasonality, weekly_seasonality, daily_seasonality, holidays,
-                                seasonality_prior_scale, holidays_prior_scale, \
+                                seasonality_prior_scale, holidays_prior_scale,
                                 changepoint_prior_scale, mcmc_samples, interval_width, uncertainty_samples, boxcoxT,
                                 skipFitting)
         #
@@ -295,9 +325,9 @@ def fit_predict_CV(boxcoxT, cap, capF, changepoint_prior_scale, changepoints, da
     choices = [np.mean(MASE1), np.mean(MASE2), np.mean(MASE3), np.mean(MASE4), np.mean(MASE5), np.mean(MASE6),
                np.mean(MASE7)]
     choice = methodList[choices.index(min(choices))]
-    ynew = fitForecast(y, h, sumMat, nodes, choice, freq, include_history, cap, capF, changepoints, n_changepoints, \
+    ynew = fitForecast(y, h, sumMat, nodes, choice, freq, include_history, cap, capF, changepoints, n_changepoints,
                        yearly_seasonality, weekly_seasonality, daily_seasonality, holidays, seasonality_prior_scale,
-                       holidays_prior_scale, \
+                       holidays_prior_scale,
                        changepoint_prior_scale, mcmc_samples, interval_width, uncertainty_samples, boxcoxT,
                        skipFitting)
     print(choice)
@@ -334,6 +364,7 @@ def check_inputs(cap, capF, h, method, nodes, y):
 
 
 def boxcox_transform(transform, y):
+    global boxcoxT
     if transform is not None:
         if transform == 'BoxCox':
             y2 = y.copy()
@@ -361,24 +392,25 @@ def boxcox_transform(transform, y):
     return boxcoxT, y
 
 
-#%% Roll-up data to week level
+# %% Roll-up data to week level
 def makeWeekly(data):
     columnList = data.columns.tolist()
-    columnCount = len(columnList)-2
+    columnCount = len(columnList) - 2
     if columnCount < 1:
         sys.exit("you need at least 1 column")
     data[columnList[0]] = pd.to_datetime(data[columnList[0]])
     cl = tuple(columnList[1:-1])
-    data1 = data.groupby([pd.Grouper(key = columnList[0], freq='W'), *cl], as_index = False)[columnList[-1]].sum()
-    data2 = data.groupby([pd.Grouper(key = columnList[0], freq='W'), *cl])[columnList[-1]].sum()
+    data1 = data.groupby([pd.Grouper(key=columnList[0], freq='W'), *cl], as_index=False)[columnList[-1]].sum()
+    data2 = data.groupby([pd.Grouper(key=columnList[0], freq='W'), *cl])[columnList[-1]].sum()
     data1['week'] = data2.index.get_level_values(columnList[0])
     cols = data1.columns.tolist()
     cols = cols[-1:] + cols[:-1]
     data1 = data1[cols]
     return data1
 
-#%% Create Ordering Function
-def orderHier(data, col1 = 1, col2 = None, col3 = None, col4 = None, rmZeros = False):
+
+# %% Create Ordering Function
+def orderHier(data, col1=1, col2=None, col3=None, col4=None, rmZeros=False):
     """
     This function will order the hierarchy the way you like it as long as you are
     using max 4 layers
@@ -473,8 +505,7 @@ def compute_nodes(numIn, y):
     ##
     # Create Nodes variable (A list of lists that describes the hierarchical structure)
     ##
-    nodes = []
-    nodes.append([count1 - 2])
+    nodes = [[count1 - 2]]
     if numIn > 1:
         numberList = []
         for column in range(2, count1):
@@ -512,12 +543,12 @@ def compute_hierarchy(data, dimList, lengthList, numIn, orderList, rmZeros, uniq
         if numIn > 1:
             # Creating dataframes for the second level of the hierarchy
             placeholder = \
-            allDataframes[uniqueList[orderList.index(1)][num]].groupby([timeInterval, dimList[orderList.index(2)]])[
-                numCol].sum()
+                allDataframes[uniqueList[orderList.index(1)][num]].groupby([timeInterval, dimList[orderList.index(2)]])[
+                    numCol].sum()
             for ind in range(lengthList[orderList.index(2)]):
                 allDataframes[uniqueList[orderList.index(1)][num] + '_' + uniqueList[orderList.index(2)][ind]] = (
-                placeholder.loc[
-                    (placeholder.index.get_level_values(1) == uniqueList[orderList.index(2)][ind])]).to_frame()
+                    placeholder.loc[
+                        (placeholder.index.get_level_values(1) == uniqueList[orderList.index(2)][ind])]).to_frame()
 
                 if numIn > 2:
                     placeholder1 = allDataframes[uniqueList[orderList.index(1)][num]].groupby(
@@ -528,8 +559,8 @@ def compute_hierarchy(data, dimList, lengthList, numIn, orderList, rmZeros, uniq
                             uniqueList[orderList.index(1)][num] + '_' + uniqueList[orderList.index(2)][ind] + '_' +
                             uniqueList[orderList.index(3)][cnt]] = (placeholder1.loc[
                             (placeholder1.index.get_level_values(1) == uniqueList[orderList.index(2)][ind]) & (
-                                        placeholder1.index.get_level_values(2) == uniqueList[orderList.index(3)][
-                                    cnt])]).to_frame()
+                                    placeholder1.index.get_level_values(2) == uniqueList[orderList.index(3)][
+                                cnt])]).to_frame()
 
                         if numIn > 3:
                             placeholder2 = allDataframes[uniqueList[orderList.index(1)][num]].groupby(
@@ -541,8 +572,8 @@ def compute_hierarchy(data, dimList, lengthList, numIn, orderList, rmZeros, uniq
                                     uniqueList[orderList.index(1)][num] + '_' + uniqueList[orderList.index(2)][
                                         ind] + '_' + uniqueList[orderList.index(3)][cnt] + '_' +
                                     uniqueList[orderList.index(4)][pos]] = (
-                                placeholder2.loc[(placeholder2.index.get_level_values(1) \
-                                                  == uniqueList[orderList.index(2)][ind]) & (
+                                    placeholder2.loc[(placeholder2.index.get_level_values(1)
+                                                      == uniqueList[orderList.index(2)][ind]) & (
                                                              placeholder2.index.get_level_values(2) ==
                                                              uniqueList[orderList.index(3)][cnt]) & (
                                                              placeholder2.index.get_level_values(3) ==
@@ -560,8 +591,8 @@ def compute_hierarchy(data, dimList, lengthList, numIn, orderList, rmZeros, uniq
         if numIn > 1:
             for j in range(lengthList[orderList.index(2)]):
                 allDataframes[uniqueList[orderList.index(1)][i] + '_' + uniqueList[orderList.index(2)][j]].index = \
-                allDataframes[
-                    uniqueList[orderList.index(1)][i] + '_' + uniqueList[orderList.index(2)][j]].index.droplevel(1)
+                    allDataframes[
+                        uniqueList[orderList.index(1)][i] + '_' + uniqueList[orderList.index(2)][j]].index.droplevel(1)
                 y = pd.merge(y,
                              allDataframes[uniqueList[orderList.index(1)][i] + '_' + uniqueList[orderList.index(2)][j]],
                              how='left', left_on='time', right_index=True)
@@ -590,24 +621,27 @@ def compute_hierarchy(data, dimList, lengthList, numIn, orderList, rmZeros, uniq
                                 allDataframes[
                                     uniqueList[orderList.index(1)][i] + '_' + uniqueList[orderList.index(2)][j] + '_' +
                                     uniqueList[orderList.index(3)][k] + '_' + uniqueList[orderList.index(4)][l]].index = \
-                                allDataframes[
-                                    uniqueList[orderList.index(1)][i] + '_' + uniqueList[orderList.index(2)][j] + '_' +
-                                    uniqueList[orderList.index(3)][k] + '_' + uniqueList[orderList.index(4)][
-                                        l]].index.droplevel(3)
-                                allDataframes[
-                                    uniqueList[orderList.index(1)][i] + '_' + uniqueList[orderList.index(2)][j] + '_' +
-                                    uniqueList[orderList.index(3)][k] + '_' + uniqueList[orderList.index(4)][l]].index = \
-                                allDataframes[
-                                    uniqueList[orderList.index(1)][i] + '_' + uniqueList[orderList.index(2)][j] + '_' +
-                                    uniqueList[orderList.index(3)][k] + '_' + uniqueList[orderList.index(4)][
-                                        l]].index.droplevel(2)
+                                    allDataframes[
+                                        uniqueList[orderList.index(1)][i] + '_' + uniqueList[orderList.index(2)][
+                                            j] + '_' +
+                                        uniqueList[orderList.index(3)][k] + '_' + uniqueList[orderList.index(4)][
+                                            l]].index.droplevel(3)
                                 allDataframes[
                                     uniqueList[orderList.index(1)][i] + '_' + uniqueList[orderList.index(2)][j] + '_' +
                                     uniqueList[orderList.index(3)][k] + '_' + uniqueList[orderList.index(4)][l]].index = \
+                                    allDataframes[
+                                        uniqueList[orderList.index(1)][i] + '_' + uniqueList[orderList.index(2)][
+                                            j] + '_' +
+                                        uniqueList[orderList.index(3)][k] + '_' + uniqueList[orderList.index(4)][
+                                            l]].index.droplevel(2)
                                 allDataframes[
                                     uniqueList[orderList.index(1)][i] + '_' + uniqueList[orderList.index(2)][j] + '_' +
-                                    uniqueList[orderList.index(3)][k] + '_' + uniqueList[orderList.index(4)][
-                                        l]].index.droplevel(1)
+                                    uniqueList[orderList.index(3)][k] + '_' + uniqueList[orderList.index(4)][l]].index = \
+                                    allDataframes[
+                                        uniqueList[orderList.index(1)][i] + '_' + uniqueList[orderList.index(2)][
+                                            j] + '_' +
+                                        uniqueList[orderList.index(3)][k] + '_' + uniqueList[orderList.index(4)][
+                                            l]].index.droplevel(1)
                                 y = pd.merge(y, allDataframes[
                                     uniqueList[orderList.index(1)][i] + '_' + uniqueList[orderList.index(2)][j] + '_' +
                                     uniqueList[orderList.index(3)][k] + '_' + uniqueList[orderList.index(4)][l]],
@@ -616,7 +650,7 @@ def compute_hierarchy(data, dimList, lengthList, numIn, orderList, rmZeros, uniq
                                     numCol: uniqueList[orderList.index(1)][i] + '_' + uniqueList[orderList.index(2)][
                                         j] + '_' + uniqueList[orderList.index(3)][k] + '_' +
                                             uniqueList[orderList.index(4)][l]}, inplace=True)
-    if rmZeros == True:
+    if rmZeros:
         # Get rid of Missing columns and rows
         y.dropna(axis=1, how='any', thresh=len(y['time']) / 2, inplace=True)
         y.dropna(axis=0, how='any', inplace=True)

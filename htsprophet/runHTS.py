@@ -1,6 +1,6 @@
 import pandas as pd
-from htsprophet.hts import forecast_hts, orderHier, makeWeekly
-from htsprophet.htsPlot import plotNode, plotChild, plotNodeComponents
+
+from htsprophet.hts import forecast_hts, orderHier
 
 # sales = pd.read_csv(data / 'sales_train_validation.csv')
 # prices = pd.read_csv(data / 'sell_prices.csv')
