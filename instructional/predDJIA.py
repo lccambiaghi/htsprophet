@@ -6,7 +6,7 @@ Created on Wed Aug 30 09:26:59 2017
 """
 
 import pandas as pd
-from htsprophet.hts import forecast_hts
+from htsprophet.__main__ import forecast_hts
 from htsprophet.htsPlot import plotNode
 from lastprophet.last import lastF
 import matplotlib.pyplot as plt

@@ -3,7 +3,8 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from htsprophet.hts import forecast_hts, makeWeekly, orderHier
+from htsprophet.__main__ import forecast_hts, makeWeekly
+from hierarchy import orderHier
 
 
 class testHTSOut(unittest.TestCase):

@@ -4,7 +4,7 @@ Name: htsPlot.py
 Author: Collin Rooney
 Last Updated: 7/17/2017
 
-This script will contain functions for plotting the output of the hts.py file
+This script will contain functions for plotting the output of the __main__.py file
 These plots will be made to look like the plots Prophet creates
 
 Credit to Rob J. Hyndman and research partners as much of the code was developed with the help of their work
